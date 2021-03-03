@@ -1,0 +1,8 @@
+
+[workspace]
+
+members = [
+    "packages/desktop",
+    "packages/kernel",
+    "packages/vga"
+]
