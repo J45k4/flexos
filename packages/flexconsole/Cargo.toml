@@ -1,5 +1,5 @@
 [package]
-name = "flexos_kernel"
+name = "flexconsole"
 version = "0.1.0"
 authors = ["jaska <pusanteemu@gmail.com>"]
 edition = "2018"
