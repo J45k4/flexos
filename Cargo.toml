@@ -2,8 +2,5 @@
 [workspace]
 
 members = [
-    "packages/kernel",
-    "packages/vga",
-    "packages/flexos_linux",
-    "packages/flexconsole"
+    "packages/flexos"
 ]
