@@ -1,3 +1,5 @@
 {
-    "rust-analyzer.assist.importMergeBehavior": "none"
+    "rust-analyzer.assist.importMergeBehavior": "none",
+    "deno.enable": true,
+    "deno.config": "./tsconfig.json"
 }
