@@ -28,6 +28,10 @@ Access to GPU for rendering and computing. GPU resources can be shared between m
 
 Access to CPU resources from other machines. This would be useful for example when running some heavy computations.
 
+### Screens
+
+Display content on any screens that are connected to any instances. However it probably only mkaes to use screens physically close to you.
+
 ## Security
 
 It is possible to enable end to end encryption,
