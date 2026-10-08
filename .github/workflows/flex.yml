@@ -1,0 +1,111 @@
+name: Flexscript FlexOS
+
+on:
+  push:
+    branches: [master]
+    paths: ['kernel.flex', 'baremetal.flex', 'desktop.flex', 'core/**', 'platform/**', 'apps/**', 'tools/**', 'tests/**', '.github/workflows/flex.yml', '.gitignore']
+  pull_request:
+    branches: [master]
+    paths: ['kernel.flex', 'baremetal.flex', 'desktop.flex', 'core/**', 'platform/**', 'apps/**', 'tools/**', 'tests/**', '.github/workflows/flex.yml', '.gitignore']
+  workflow_dispatch:
+    inputs:
+      flexscript_ref:
+        description: Flexscript source revision containing bare-metal and 16/32-bit port I/O support
+        required: true
+        default: master
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  hosted:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libssl3 ca-certificates
+      - name: Download and checksum the released native compiler
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/compiler
+          gh release download 0.0.5 --repo J45k4/flexscript --dir build/compiler \
+            --pattern flexscript-0.0.5-linux-x86_64 \
+            --pattern flexscript-core-0.0.5-linux-x86_64 --pattern SHA256SUMS
+          (cd build/compiler && sha256sum --check SHA256SUMS)
+          chmod +x build/compiler/flexscript-0.0.5-linux-x86_64
+      - name: Check out the pinned VM source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: J45k4/flexscript
+          ref: a06c7e02422711c21fef4e6df4a86cf25cce84eb
+          path: build/vm-source
+          persist-credentials: false
+      - name: Build the VM, kernel, and tools using released Flexscript
+        run: |
+          compiler="$PWD/build/compiler/flexscript-0.0.5-linux-x86_64"
+          "$compiler" build/vm-source/compiler/main.flex -o build/flex-vm
+          "$compiler" tools/build.flex -o build/build
+          build/build "$compiler"
+      - name: Test resources, shell, VM capabilities and real terminal interaction
+        run: |
+          build/test-flexos build/compiler/flexscript-0.0.5-linux-x86_64 build/flex-vm
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flexos-hosted-linux-x86_64
+          path: build/flexos
+
+  baremetal:
+    name: Boot native FlexOS in QEMU
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the emulator and compiler runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes qemu-system-x86 qemu-system-gui libssl3 ca-certificates sway libxkbcommon0 libsdl2-2.0-0 fonts-dejavu-core libgl1-mesa-dri
+      - name: Download and checksum the released compiler seed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/compiler
+          gh release download 0.0.5 --repo J45k4/flexscript --dir build/compiler \
+            --pattern flexscript-0.0.5-linux-x86_64 \
+            --pattern flexscript-core-0.0.5-linux-x86_64 --pattern SHA256SUMS
+          (cd build/compiler && sha256sum --check SHA256SUMS)
+          chmod +x build/compiler/flexscript-0.0.5-linux-x86_64
+      - name: Check out the requested compiler source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: J45k4/flexscript
+          ref: ${{ inputs.flexscript_ref || 'master' }}
+          path: build/compiler-source
+          persist-credentials: false
+      - name: Build compiler, kernel and test tools using Flexscript
+        run: |
+          git -C build/compiler-source rev-parse HEAD
+          build/compiler/flexscript-0.0.5-linux-x86_64 build/compiler-source/compiler/main.flex -o build/flex
+          build/flex tools/build-baremetal.flex -o build/build-baremetal
+          build/build-baremetal build/flex
+      - name: Verify real bare-metal boot, ring-0 long mode and halt
+        run: build/test-baremetal build/flex qemu-system-x86_64
+      - name: Verify graphical desktop using real PS/2 input and framebuffer capture
+        run: build/test-desktop build/flex qemu-system-x86_64
+      - name: Verify Wayland host mouse capture, movement, clicks and dragging headlessly
+        run: build/test-desktop-wayland build/flex qemu-system-x86_64 sway
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: flexos-baremetal-x86_64
+          path: |
+            build/flexos-baremetal.bin
+            build/flexos-desktop.bin
+            build/desktop-tests/*.png

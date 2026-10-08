@@ -1,1 +1,0 @@
-deno bundle -c tsconfig.json .\web\app.ts .\web\dist\app.js
