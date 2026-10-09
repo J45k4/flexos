@@ -11,6 +11,10 @@ The graphical target adds a native desktop with Files, Notes and Terminal;
 see [desktop build and usage](DESKTOP.md). This document describes the serial
 target and the shared bare-metal services.
 
+There is also a [native Doom boot target](DOOM.md). It loads the original engine
+as an external game ELF and supplies its hardware/runtime services in Flexscript.
+The separate game payload uses a C compiler and linker on the build host.
+
 ## Build
 
 Requirements: a Linux x86-64 build host, QEMU's x86 system emulator and a current
@@ -89,14 +93,19 @@ change needs to be published before this job can run remotely.
 
 ## Current boundary
 
-Interrupts stay disabled and the serial driver polls. There is no IDT, hardware
-timer, scheduler, disk driver, networking or freestanding VM yet. The graphical
+Interrupts stay disabled and the serial driver polls. The serial/desktop targets
+have no IDT; there is no scheduler, disk driver, networking or freestanding VM
+yet. The Doom target
+adds a polled HPET clock; the serial and desktop targets do not use it. The graphical
 target uses polled PS/2 input and a software-rendered VGA framebuffer. App
 registration and capability commands share the hosted core, but `run`
 returns an unavailable-provider error on bare metal. `resources` states this
-explicitly. The Linux target continues to support restricted VM apps.
+explicitly. The Linux-hosted target continues to support restricted VM apps.
 
 The next execution provider needs a freestanding VM and a scheduler; the kernel
-cannot use Linux `fork`/`exec` on this target. Native task isolation also needs
-separate page tables and privilege handling. Booting on physical hardware has
-not been tested.
+cannot use Linux `fork`/`exec` on this target. A separate [Linux ABI boot
+target](LINUX.md) now provides native ring-3 execution with separate page tables,
+CPU fault handling and a Linux syscall subset, fbdev/evdev and X11 for unchanged static x86 ELF
+applications, including [historical Linux Doom](LINUX-DOOM.md). It runs one process and then halts; it is not yet connected to
+the shell or desktop execution provider. Booting on physical hardware has not
+been tested.

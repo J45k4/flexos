@@ -98,10 +98,14 @@ fn platform_status(pid) {return -1;}
 fn platform_stop(pid) {return -38;}
 fn platform_close(fd) {return 0;}
 fn platform_cleanup() {return 0;}
-fn platform_init() {
+fn bm_console_init() {
     // 115200 baud, 8N1, FIFO enabled, interrupts off.
     port_out8(0x3f9,0);port_out8(0x3fb,128);port_out8(0x3f8,1);port_out8(0x3f9,0);
     port_out8(0x3fb,3);port_out8(0x3fa,199);port_out8(0x3fc,11);
+    return 0;
+}
+fn platform_init() {
+    bm_console_init();
     fo_assert(load64(0x400020)==0x2badb002,"invalid Multiboot handoff");
     let info=load64(0x400028);
     fo_assert(info>0 && (load64(info)&1),"Multiboot memory information required");
